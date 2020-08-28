@@ -40,9 +40,6 @@ out.write(outro)
 
 out.close()
 
-
-
-
 """
 name=SMALL
 type=0
