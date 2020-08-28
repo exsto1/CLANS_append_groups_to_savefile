@@ -1,14 +1,25 @@
+import argparse
 import os
 
-CLANS_savefile = "PF01388/PF01388_saved_run_CLANS"
-output_file = "PF01388_new_test_CLANS"
-dot_size = 5
+parser = argparse.ArgumentParser(
+    description="Append groups to CLANS savefile. More info can be found in README file.")
 
-groups_folder = "PF01388_clusters"
+parser.add_argument("-c", "--clans", help="path to CLANS savefile. WARNING: old groups will be ignored")
+parser.add_argument("-g", "--groups", help="path to folder with group files. More info in README")
+parser.add_argument("-o", "--output", help="output file name", default="new_CLANS_savefile")
+parser.add_argument("-d", "--dot", help="default dot size for all unspecified groups", default="5")
+
+args = parser.parse_args()
+
+CLANS_savefile = os.path.abspath(args.clans)
+output_file = os.path.abspath(args.output)
+dot_size = args.dot
+groups_folder = os.path.abspath(args.groups)
+
 
 CLANS = open(CLANS_savefile).read()
 
-intro = CLANS.split("</seq>")[0]
+intro = CLANS.split(r"</seq>")[0]
 outro = CLANS.split(r"</seq>")[1]
 
 sequences = CLANS.split("<seq>")[1].split(r"</seq>")[0].split("\n")
@@ -16,16 +27,36 @@ sequences = [i.lstrip(">") for i in sequences if ">" in i]
 
 groups = []
 for file in os.listdir(groups_folder):
-    temp = "name=%s\ntype=0\nsize=%s\nhide=0\ncolor=255;0;0;255\nnumbers=" % (file, dot_size)
-
     group_file = open("%s/%s" % (groups_folder, file)).readlines()
     group_file = [i.rstrip() for i in group_file]
+
+    groupname = os.path.splitext(file)[0]
+    groupname = os.path.basename(groupname)
+    size = dot_size
+    hide = "0"
+    color = "255;0;0;255"
+
+    if "# CONFIG:" in group_file[0]:
+        options = group_file[0].split("# CONFIG:")[1].split(",")
+        options = {i.split("=")[0]: i.split("=")[1] for i in options if i}
+        if "name" in options:
+            groupname = options["name"]
+        if "size" in options:
+            size = options["size"]
+        if "hide" in options:
+            hide = options["hide"]
+        if "color" in options:
+            color = options["color"]
+
+    temp = "name=%s\ntype=0\nsize=%s\nhide=%s\ncolor=%s\nnumbers=" % (groupname, size, hide, color)
+
     seq_index = []
     for name in range(len(group_file)):
-        if group_file[name] in sequences:
-            seq_index.append(str(sequences.index(group_file[name])))
-        else:
-            print("Invalid name %s: %s - file %s" % (name, group_file[name], file))
+        if "#" not in group_file[name]:
+            if group_file[name] in sequences:
+                seq_index.append(str(sequences.index(group_file[name])))
+            else:
+                print("Invalid name %s: %s - file %s" % (name, group_file[name], file))
     temp += ";".join(seq_index) + ";"
     groups.append(temp)
 
@@ -40,6 +71,13 @@ out.write(outro)
 
 out.close()
 
+
+# CONFIG line example
+"""
+# CONFIG:name=XXX,size=XXX,hide=X,color=XXX;XXX;XXX;XXX
+"""
+
+# Group example in CLANS savefile
 """
 name=SMALL
 type=0
